@@ -16,6 +16,6 @@
 #include <IMemory.h>
 #include <try_catch.h>
 
-__throws void ElfLoad_FromMemory(IMemory* pMemory, const void* pElf, size_t elfSize);
+__throws void ElfLoad_FromMemory(IMemory* pMemory, const void* pElf, size_t elfSize, int initializeVaddrs);
 
 #endif /* _ELF_LOAD_H_ */

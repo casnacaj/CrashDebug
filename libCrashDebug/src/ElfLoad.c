@@ -33,17 +33,17 @@ static LoadObject initLoadObject(const char* pBlob, size_t blobSize);
 static SizedBlob initSizedBlob(const char* pBlob, size_t blobSize);
 static const void* fetchSizedByteArray(const SizedBlob* pBlob, uint32_t offset, uint32_t size);
 static void validateElfHeaderContents(const Elf32_Ehdr* pHeader);
-static void loadFlashLoadableEntries(IMemory* pMemory, LoadObject* pObject);
-static void loadIfFlashLoadableEntry(IMemory* pMemory, LoadObject* pObject, const Elf32_Phdr* pPgmHeader);
+static void loadFlashLoadableEntries(IMemory* pMemory, LoadObject* pObject, int initializeVaddrs);
+static void loadIfFlashLoadableEntry(IMemory* pMemory, LoadObject* pObject, const Elf32_Phdr* pPgmHeader, int initializeVaddrs);
 static int isFlashLoadableEntry(const Elf32_Phdr* pHeader);
 
 
-__throws void ElfLoad_FromMemory(IMemory* pMemory, const void* pElf, size_t elfSize)
+__throws void ElfLoad_FromMemory(IMemory* pMemory, const void* pElf, size_t elfSize, int initializeVaddrs)
 {
     LoadObject object = initLoadObject(pElf, elfSize);
 
     validateElfHeaderContents(object.pElfHeader);
-    loadFlashLoadableEntries(pMemory, &object);
+    loadFlashLoadableEntries(pMemory, &object, initializeVaddrs);
     if (object.entryLoadCount == 0)
         __throw_msg(elfFormatException,
                     "ELF contained no entries which were loadable and had a valid non-zero filesz <= to memsz.");
@@ -97,7 +97,7 @@ static void validateElfHeaderContents(const Elf32_Ehdr* pHeader)
                     pHeader->e_phentsize, (unsigned int)sizeof(Elf32_Phdr));
 }
 
-static void loadFlashLoadableEntries(IMemory* pMemory, LoadObject* pObject)
+static void loadFlashLoadableEntries(IMemory* pMemory, LoadObject* pObject, int initializeVaddrs)
 {
     const Elf32_Phdr* volatile  pPgmHeader = NULL;
     volatile Elf32_Half         i = 0;
@@ -114,12 +114,12 @@ static void loadFlashLoadableEntries(IMemory* pMemory, LoadObject* pObject)
                         "ELF page header entry %d is at an invalid file offset of %u.",
                         i, pObject->pgmHeaderOffset);
         }
-        loadIfFlashLoadableEntry(pMemory, pObject, pPgmHeader);
+        loadIfFlashLoadableEntry(pMemory, pObject, pPgmHeader, initializeVaddrs);
         pObject->pgmHeaderOffset += pObject->pElfHeader->e_phentsize;
     }
 }
 
-static void loadIfFlashLoadableEntry(IMemory* pMemory, LoadObject* pObject, const Elf32_Phdr* pPgmHeader)
+static void loadIfFlashLoadableEntry(IMemory* pMemory, LoadObject* pObject, const Elf32_Phdr* pPgmHeader, int initializeVaddrs)
 {
     const void* volatile pData = NULL;
 
@@ -140,6 +140,12 @@ static void loadIfFlashLoadableEntry(IMemory* pMemory, LoadObject* pObject, cons
     MemorySim_LoadFromFlashImage(pMemory, pPgmHeader->p_paddr, pData, pPgmHeader->p_filesz);
     MemorySim_MakeRegionReadOnly(pMemory, pPgmHeader->p_paddr);
     pObject->entryLoadCount++;
+    if (initializeVaddrs && (pPgmHeader->p_paddr != pPgmHeader->p_vaddr))
+    {
+        MemorySim_CreateRegion(pMemory, pPgmHeader->p_vaddr, pPgmHeader->p_filesz);
+        MemorySim_LoadFromFlashImage(pMemory, pPgmHeader->p_vaddr, pData, pPgmHeader->p_filesz);
+        pObject->entryLoadCount++;
+    }
 }
 
 static int isFlashLoadableEntry(const Elf32_Phdr* pHeader)

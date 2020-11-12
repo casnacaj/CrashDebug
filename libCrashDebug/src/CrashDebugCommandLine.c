@@ -37,6 +37,7 @@ static void displayUsage(void)
     printf("Usage: CrashDebug (--elf elfFilename | --bin imageFilename baseAddress)\n"
            "                   --dump dumpFilename\n"
            "                  [--alias baseAddress size redirectAddress]\n"
+           "                  [--vaddrs]\n"
            "Where: NOTE: The --elf and --bin options are mutually exclusive.  Use one\n"
            "             or the other but not both.\n"
            "       --elf is used to provide the filename of the .elf image containing\n"
@@ -56,7 +57,11 @@ static void displayUsage(void)
            "       --alias is used to trap memory accesses to the region defined\n"
            "         by baseAddress/size and redirect them to the region at\n"
            "         redirectAddress. For example acesses to baseAddress will access\n"
-           "         redirectAddress instead).\n");
+           "         redirectAddress instead).\n"
+           "       --vaddrs create sections also for vaddr if vaddr != paddr in elf\n"
+           "         file. Typically this can be used to initialize code and data\n"
+           "         in RAM loaded from flash. Without this option the data are loaded\n"
+           "         only in flash (paddr) and RAM section (vaddr) is uninitialized\n.");
 }
 
 
@@ -88,6 +93,7 @@ static int parseBinFilenameOption(CrashDebugCommandLine* pThis, int argc, const 
 static int parseElfFilenameOption(CrashDebugCommandLine* pThis, int argc, const char** ppArgs, ParsePass pass);
 static int parseDumpFilenameOption(CrashDebugCommandLine* pThis, int argc, const char** ppArgs, ParsePass pass);
 static int parseAliasOption(CrashDebugCommandLine* pThis, int argc, const char** ppArgs, ParsePass pass);
+static int parseVaddrsOption(CrashDebugCommandLine* pThis);
 static void throwIfRequiredArgumentNotSpecified(CrashDebugCommandLine* pThis);
 static void loadImageFile(CrashDebugCommandLine* pThis);
 static FileData loadFileData(const char* pFilename);
@@ -158,6 +164,8 @@ static int parseFlagArgument(CrashDebugCommandLine* pThis, int argc, const char*
         return parseDumpFilenameOption(pThis, argc - 1, &ppArgs[1], pass);
     else if (0 == strcasecmp(*ppArgs, "--alias"))
         return parseAliasOption(pThis, argc - 1, &ppArgs[1], pass);
+    else if (0 == strcasecmp(*ppArgs, "--vaddrs"))
+        return parseVaddrsOption(pThis);
     else
         __throw_msg(invalidArgumentException, "\"%s\" isn't a valid command line option.", *ppArgs);
 }
@@ -219,6 +227,12 @@ static int parseAliasOption(CrashDebugCommandLine* pThis, int argc, const char**
     return 4;
 }
 
+static int parseVaddrsOption(CrashDebugCommandLine* pThis)
+{
+    pThis->initializeVAddrs = 1;
+    return 1;
+}
+
 static void throwIfRequiredArgumentNotSpecified(CrashDebugCommandLine* pThis)
 {
     if (!pThis->pBinFilename && !pThis->pElfFilename)
@@ -236,7 +250,7 @@ static void loadImageFile(CrashDebugCommandLine* pThis)
         if (pThis->pElfFilename)
         {
             fileData = loadFileData(pThis->pElfFilename);
-            ElfLoad_FromMemory(pThis->pMemory, fileData.pData, fileData.dataSize);
+            ElfLoad_FromMemory(pThis->pMemory, fileData.pData, fileData.dataSize, pThis->initializeVAddrs);
         }
         else
         {

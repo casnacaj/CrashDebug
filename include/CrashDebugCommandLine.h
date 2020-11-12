@@ -22,6 +22,7 @@ typedef struct CrashDebugCommandLine
     const char*     pElfFilename;
     const char*     pBinFilename;
     const char*     pDumpFilename;
+    int             initializeVAddrs;
     IMemory*        pMemory;
     RegisterContext context;
     uint32_t        baseAddress;
