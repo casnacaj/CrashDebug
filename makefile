@@ -39,7 +39,7 @@ HOST_AR  := ar
 
 # Handle Windows and *nix differences.
 ifeq "$(OS)" "Windows_NT"
-    MAKEDIR = mkdir $(subst /,\,$(dir $@))
+    MAKEDIR = mkdir -p $(subst /,\\,$(dir $@))
     REMOVE := del /q
     REMOVE_DIR := rd /s /q
     QUIET := >nul 2>nul & exit 0
@@ -118,7 +118,7 @@ define run_gcov
     .PHONY : GCOV_$1
     GCOV_$1 : GCOV_RUN_$1_TESTS
 		$Q $(REMOVE) $1_output.txt $(QUIET)
-		$Q mkdir $(subst /,\,gcov/$1_tests) $(QUIET)
+		$Q mkdir -p $(subst /,\\,gcov/$1_tests) $(QUIET)
 		$Q $(foreach i,$(GCOV_HOST_$1_OBJ),gcov $(dir $i)$(notdir $i)  >> $1_output.txt 2>nul &&) REM
 		$Q move $1_output.txt gcov/$1_tests/ $(QUIET)
 		$Q move *.gcov gcov/$1_tests/ $(QUIET)
