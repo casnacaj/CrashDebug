@@ -197,10 +197,10 @@ DEPS += $(call add_deps,NATIVE_MEM)
 
 #######################################
 # libmricore.a
-$(eval $(call make_library,LIBMRICORE,mri/core,libmricore.a,mri/include))
+$(eval $(call make_library,LIBMRICORE,mri/core,libmricore.a,mri/include mri))
 $(eval $(call make_tests,LIBMRICORE,\
                          mri/tests/tests mri/tests/mocks,\
-                         mri/include mri/tests/mocks,\
+                         mri/include mri/tests/mocks mri,\
                          $(HOST_NATIVE_MEM_OBJ)))
 $(eval $(call run_gcov,LIBMRICORE))
 
