@@ -104,6 +104,15 @@ extern int               g_exceptionCode;
 
 #define __rethrow __throw(getExceptionCode())
 
+#ifdef __GNUC__
+#ifdef __MINGW32__
+#ifdef __nothrow
+/* undef __nothrow defined in MINGW64-MSYS32 */
+#undef __nothrow
+#endif /* __nothrow */
+#endif /* __MINGW32__ */
+#endif /* __GNUC__ */
+
 #define __nothrow { clearExceptionCode(); return; }
 
 #define __nothrow_and_return(RETURN) return (clearExceptionCode(), (RETURN))
